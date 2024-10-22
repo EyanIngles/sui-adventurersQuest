@@ -20,7 +20,7 @@ module DragonQuest::DragonQuestMain {
         // add a check to see if the signer address has a active player
 
         let character = Character {
-            id: object::new(ctx),
+            id: sui::object::new(ctx),
             adventures_name,
             adventures_level: 0,
             experience_points: 0,
