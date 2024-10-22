@@ -15,7 +15,8 @@ module DragonQuest::DragonQuestMain {
         //companion: dragon struct
     } 
 
-    public fun create_character(adventures_name: String, ctx: &mut TxContext) {
+    //Here: if the function is not marked as "entry" you can't access it through ptb call. 
+    public entry fun create_character(adventures_name: String, ctx: &mut TxContext) {
         let sender = tx_context::sender(ctx); // Get the sender's ID
         // add a check to see if the signer address has a active player
 
@@ -38,6 +39,10 @@ module DragonQuest::DragonQuestMain {
         character.experience_points + 1;
         let level_1 = 5;
         let level_2 = 10;
+
+        //In the code below you have an issue:
+        //Think about it dude, if the character experience is more or equal to 1 -> +1 level, that statment always triggers
+
         if (character.experience_points >= level_1) {
             character.adventures_level + 1 ;
         };
