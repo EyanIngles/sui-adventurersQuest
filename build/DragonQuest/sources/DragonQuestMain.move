@@ -1,6 +1,8 @@
 //
 module DragonQuest::DragonQuestMain {
-    use std::string::String;
+    use std::string::{Self, String};
+    use DragonQuest::BalanceManager;
+    use sui::table;
 
     // error message
     const LEVEL_NOT_HIGH_ENOUGH:u64 = 1; // level of the user is not high enough and must level up before proceeding
@@ -15,19 +17,57 @@ module DragonQuest::DragonQuestMain {
         in_cave: bool,
         //companion: dragon struct
     } 
+    public struct Rarity_table {
+        rarity: table::Table<u8, bool>,
+    }
+    public struct Dragon_egg has key, store {
+        id:UID, 
+        rarity: u8,
+        nature_type: String,
+        larger_number: u64,
+    }
 
     public fun create_character(adventures_name: String, ctx: &mut TxContext) {
        // let sender = tx_context::sender(ctx); // Get the sender's ID
         // add a check to see if the signer address has a active player
 
         let character = Character {
-            id: object::new(ctx),
+            id: sui::object::new(ctx),
             adventures_name,
-            adventures_level: 0,
+            adventures_level: 1, // new characters start at level 1
             experience_points: 0,
             in_cave: false,
         };
         transfer::transfer(character, tx_context::sender(ctx));
+    }
+    public fun get_dragon_egg(ctx: &mut TxContext) {
+        let recipient = tx_context::sender(ctx);
+        // create a check to ensure that the rarity number called is not already used, if so, re call.
+        let rarity:u8 = BalanceManager::generate_number_for_rarity(ctx);
+
+        // create a if statement to determine the nature of the dragon.
+        let nature_number:u8 = BalanceManager::generate_number_for_nature(ctx);
+        let mut nature = string::utf8(b"Earth");
+        if (nature_number == 1) {
+            nature = string::utf8(b"Fire");
+        };
+        if (nature_number == 2) {
+            nature = string::utf8(b"Wind");
+        };
+        if (nature_number == 3) {
+            nature = string::utf8(b"Ghost");
+        };
+        if (nature_number == 4) {
+            nature = string::utf8(b"Demon");
+        }; // these values should change... need testing.
+        let larger_number = BalanceManager::generate_number_for_larger(ctx);
+        let dragon_egg = Dragon_egg {
+            id: object::new(ctx),
+            rarity,
+            nature_type: nature,
+            larger_number
+        };
+        transfer::transfer(dragon_egg, recipient)
     }
     
    public fun generate_random(ctx: &mut TxContext): u64 {
@@ -44,7 +84,7 @@ module DragonQuest::DragonQuestMain {
         if (character.experience_points >= level_1) {
             character.adventures_level = character.adventures_level + 1 ;
         };
-        if (character.experience_points >= level_2) {
+        if (character.experience_points >= level_2) { // this is now skipping , need to fix
             character.adventures_level = character.adventures_level + 1;
         };
     }
