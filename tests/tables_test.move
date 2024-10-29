@@ -1,11 +1,17 @@
 #[test_only]
 module DragonQuest::test {
+    use std::string::{String};
+    use sui::test_scenario;
+    use std::string;
+
+    use sui::tx_context;
     use DragonQuest::DragonQuestMain::{
         create_character, 
         get_dragon_egg, 
         gain_experience,
         enter_cave,
-        exit_cave };
+        exit_cave,
+        Character };
         
     use DragonQuest::BalanceManager::{generate_number_for_rarity,
         generate_number_for_nature,
@@ -37,10 +43,38 @@ module DragonQuest::test {
         }
     }
 
+    fun test_generate_number_for_larger(fuzz_runs: u64) {
+        let mut ctx = tx_context::dummy();
+
+        let mut i = 0;
+        while(i < fuzz_runs) {
+            let large_number = generate_number_for_larger(&mut ctx);
+
+            assert!(large_number >= 0 && large_number < 1000, 2);
+            i = i + 1;
+        }
+    }
+
     #[test]
-    public fun test_random_number_functions() {
+    public fun fuzz_test_random_number_functions() {
         // Fuzz the test 100 times
         fuzz_test_generate_number_for_rarity(1000);
         test_generate_number_for_nature(1000);
+        test_generate_number_for_larger(1000);
     }
+
+    #[test]
+    public fun test_create_character() {
+        let mut ctx = tx_context::dummy();
+        let name = string::utf8(b"character");
+
+        create_character(name, &mut ctx); 
+        let owner = tx_context::sender(&ctx);
+        let character_object_address = tx_context::last_created_object_id(&ctx);
+
+        assert!(character_object_address != @0x0, 3)
+
+    }
+    
+
 }

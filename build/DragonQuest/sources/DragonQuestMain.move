@@ -3,13 +3,15 @@ module DragonQuest::DragonQuestMain {
     use std::string::{Self, String};
     use DragonQuest::BalanceManager;
     use sui::table;
+    use sui::test_scenario;
+
 
     // error message
     const LEVEL_NOT_HIGH_ENOUGH:u64 = 1; // level of the user is not high enough and must level up before proceeding
     const NOT_IN_CAVE:u64 = 2; // user or character not in cave already, need to enter cave to exit cave
 
     // add companion struct to then be attached to the character.
-    public struct Character has key {
+    public struct Character has key, store {
         id: UID,
         adventures_name: String,
         adventures_level: u64,
@@ -75,19 +77,29 @@ module DragonQuest::DragonQuestMain {
     hash_value // Return the hash_value, which is a u64
     }
 
-    public fun gain_experience(character: &mut Character, _ctx: &mut TxContext) {
+    public entry fun gain_experience(character: &mut Character, _ctx: &mut TxContext) {
         // gains 1 experience point
         character.experience_points = character.experience_points + 1;
         // setting the experience until level up
         let level_1 = 5;
         let level_2 = 10;
-        if (character.experience_points >= level_1) {
+        if (character.experience_points >= level_1 && character.adventures_level == 1) {
             character.adventures_level = character.adventures_level + 1 ;
         };
-        if (character.experience_points >= level_2) { // this is now skipping , need to fix
+        if (character.experience_points >= level_2 && character.adventures_level == 2) { // this is now skipping , need to fix
             character.adventures_level = character.adventures_level + 1;
         };
     }
+    public fun check_experience(character: &mut Character, _ctx: &mut TxContext):u64 {
+        character.experience_points
+    }
+    public fun check_level(character: &mut Character, _ctx: &mut TxContext):u64 {
+        character.adventures_level
+    }
+    public fun check_if_in_cave(character: &mut Character, _ctx: &mut TxContext):bool {
+        character.in_cave
+    }
+
     public fun enter_cave(character: &mut Character, _ctx: &mut TxContext) {
         let characterLevel = character.adventures_level;
         if (characterLevel >= 2) {
@@ -104,5 +116,98 @@ module DragonQuest::DragonQuestMain {
             abort(NOT_IN_CAVE)
             }
     }
+
+#[test]
+public fun test_character_create_and_gain_experience_and_level_up() {
+    let owner = @0xCAFE;
+    let name = string::utf8(b"differentName");
+
+    let mut scenario = test_scenario::begin(owner);
+    
+    // Create the character
+    let character_id = object::new(scenario.ctx());
+    let mut character = Character {
+        id: character_id,
+        adventures_name: name,
+        adventures_level: 1,
+        experience_points: 0,
+        in_cave: false,
+    };
+    // check character is correct
+    let level1 = check_level(&mut character, scenario.ctx());
+    assert!(level1 == 1, 11); // if error:: expected level to be 1.
+    // Call gain_experience with the object ID and context
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+
+    // call more experience 
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+
+     // check if character has leveled up.
+    let level3 = check_level(&mut character, scenario.ctx());
+    assert!(level3 == 3, 12); // if error:: expected level to be 1.
+    assert!(level3 > level1, 13); // if error:: expected level2 to be larger than level1.
+    
+    // check experience
+    let exp_points = check_experience(&mut character, scenario.ctx());
+    assert!(exp_points > 2, 10); //if error:: experience points are expected to be more
+    transfer::public_transfer(character, owner); // Transfer character ownership
+    scenario.end();
+}
+
+#[test]
+public fun create_character_and_enter_and_exit_cave() {
+    let owner = @0xCAFE;
+    let name = string::utf8(b"differentName");
+
+    let mut scenario = test_scenario::begin(owner);
+    
+    // Create the character
+    let character_id = object::new(scenario.ctx());
+    let mut character = Character {
+        id: character_id,
+        adventures_name: name,
+        adventures_level: 1,
+        experience_points: 0,
+        in_cave: false,
+    };
+
+    let not_in_cave = check_if_in_cave(&mut character, scenario.ctx());
+    assert!(not_in_cave == false, 14); // character expected to not be in cave
+
+    // gain enough experience to get to level 2 or high
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+    gain_experience(&mut character, scenario.ctx());
+     // check if character has leveled up.
+    let level = check_level(&mut character, scenario.ctx());
+    assert!(level > 1, 12); // if error:: expected level to be higher than 1
+
+    // character should now enter cave and we will check to see if character is currently in cave.
+    enter_cave(&mut character, scenario.ctx());
+    let in_cave = check_if_in_cave(&mut character, scenario.ctx());
+    assert!(in_cave == true, 15); //should be in cave 
+
+    exit_cave(&mut character, scenario.ctx());
+    let in_cave_still = check_if_in_cave(&mut character, scenario.ctx());
+    assert!(in_cave_still == false, 16); // user is now expected to be out of the cave
+
+    transfer::public_transfer(character, owner); // Transfer character ownership
+    scenario.end();
+}
+
 
 }
